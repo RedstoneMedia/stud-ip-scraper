@@ -1,4 +1,8 @@
+
 # Stud.IP Scraper
+![Crates.io License](https://img.shields.io/crates/l/stud_ip_scraper)
+![Crates.io Version](https://img.shields.io/crates/v/stud_ip_scraper)
+
 A blazingly fast 🚀 library for interacting with Stud.IP written in Rust 🦀. \
 This allows for interacting with Stud.IP, an online education platform 📚.
 
