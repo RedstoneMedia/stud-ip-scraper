@@ -10,7 +10,9 @@ pub use file::FileModule;
 pub use members::MembersModule;
 use crate::StudIpClient;
 
-pub(crate) static COURSE_MODULE_REGISTRY: once_cell::sync::Lazy<Arc<Mutex<HashMap<&'static str, fn(Arc<CourseModuleData>) -> Box<dyn CourseModule>>>>> = once_cell::sync::Lazy::new(Default::default);
+type ModuleConstructor = fn(Arc<CourseModuleData>) -> Box<dyn CourseModule>;
+
+pub(crate) static COURSE_MODULE_REGISTRY: once_cell::sync::Lazy<Arc<Mutex<HashMap<&'static str, ModuleConstructor>>>> = once_cell::sync::Lazy::new(Default::default);
 // Simply keeps track, if the default models have already been registered
 pub(crate) static REGISTERED_DEFAULT_COURSE_MODULES: once_cell::sync::OnceCell<()> = once_cell::sync::OnceCell::new();
 

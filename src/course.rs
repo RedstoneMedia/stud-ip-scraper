@@ -39,7 +39,7 @@ impl Course {
     /// Queries the available modules for this course and stores them in the `modules` field. \
     /// *Note: This is not done automatically*
     pub fn query_modules(&mut self) -> anyhow::Result<()> {
-        REGISTERED_DEFAULT_COURSE_MODULES.get_or_init(|| register_default_course_modules());
+        REGISTERED_DEFAULT_COURSE_MODULES.get_or_init(register_default_course_modules);
         let module_reg = COURSE_MODULE_REGISTRY.lock().unwrap();
         let response = self.client.get(MODULES_QUERY_URL)
             .query(&[("auswahl", &self.id)])
@@ -97,17 +97,17 @@ impl MyCourses {
             if !inner.contains("window.STUDIP.MyCoursesData") {
                 return None;
             }
-            let (_, json_str) = inner.split_once("=").unwrap();
-            let json_string = json_str.replace("\n", "");
+            let (_, json_str) = inner.split_once('=').unwrap();
+            let json_string = json_str.replace('\n', "");
             Some(json_string)
         }).context("Expected MyCoursesData to be present in html")?;
         // Parse MyCoursersData
         let json_str = json_string.trim()
-            .trim_end_matches(";");
+            .trim_end_matches(';');
         let mut new_my_courses: Self = serde_json::from_str(json_str)
             .context("Could not parse MyCoursesData")?;
         // Copy api handle to courses
-        for (_, course) in &mut new_my_courses.courses {
+        for course in new_my_courses.courses.values_mut() {
             course.client = self.client.clone();
         }
         *self = new_my_courses;

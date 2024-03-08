@@ -31,7 +31,7 @@ impl StudIp {
         // Read and parse credentials
         let creds = std::fs::read_to_string(creds_path)
             .context("Could not read from creds.txt")?;
-        let (username, password) = creds.split_once("\n")
+        let (username, password) = creds.split_once('\n')
             .context("creds.txt did not have newline seperated username and password")?;
 
         let mut target_url = Url::parse(&format!("https://{}", self.client.host))?;

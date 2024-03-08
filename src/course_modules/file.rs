@@ -49,8 +49,8 @@ impl FileModule {
         let data_folders = file_form_element.attr("data-folders")
             .context("Could not get folders")?;
 
-        let their_files: Vec<TheirFile> = serde_json::from_str(&data_files)?;
-        let their_folders: Vec<TheirFolder> = serde_json::from_str(&data_folders)?;
+        let their_files: Vec<TheirFile> = serde_json::from_str(data_files)?;
+        let their_folders: Vec<TheirFolder> = serde_json::from_str(data_folders)?;
         Ok(FolderContents {
             folders: their_folders.into_iter().map(|f| f.into()).collect(),
             files: their_files.into_iter().map(|f| f.into()).collect(),
