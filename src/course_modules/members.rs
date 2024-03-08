@@ -1,9 +1,11 @@
 use std::any::Any;
 use std::sync::Arc;
 use anyhow::{bail, Context};
-use chrono::{NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::serde::ts_seconds;
 use reqwest::Url;
 use scraper::{Element, ElementRef, Html, Selector};
+use serde::{Deserialize, Serialize};
 use crate::course_modules::{CourseModule, CourseModuleData};
 use crate::common_data::User;
 
@@ -105,7 +107,10 @@ impl MembersModule {
                     let date_str = re_match.as_str();
                     let date = NaiveDateTime::parse_from_str(date_str, "%d.%m.%Y %H:%M")
                         .expect("Could not parse entry_enabled_at date time");
-                    group.enables_entry_at = Some(date);
+                    let enables_entry_at = date.and_local_timezone(chrono::Local)
+                        .earliest()
+                        .map(|local| local.to_utc());
+                    group.enables_entry_at = enables_entry_at;
                 }
             }
             group
@@ -155,7 +160,7 @@ impl MembersModule {
 }
 
 /// The members of a course
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CourseMembers {
     pub lecturers: Vec<User>,
     pub tutors: Vec<User>,
@@ -163,12 +168,13 @@ pub struct CourseMembers {
 }
 
 /// A group of members of a specific course
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
     pub name: String,
     pub id: String,
     pub entered: bool,
-    pub enables_entry_at: Option<NaiveDateTime>,
+    #[serde(with = "option_ts_seconds")]
+    pub enables_entry_at: Option<DateTime<Utc>>,
     pub members: usize,
     pub max_members: usize
 }
@@ -194,4 +200,28 @@ fn parse_member_table(table_ref: ElementRef) -> Vec<User> {
             avatar_src: Some(avatar_src.to_string()),
         })
     }).collect::<Vec<_>>()
+}
+
+pub mod option_ts_seconds {
+    use serde::{Deserializer, Serializer};
+    use super::*;
+
+    pub fn serialize<S>(date: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        match date {
+            Some(date) => ts_seconds::serialize(&date, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+        Ok(Option::deserialize(deserializer)?.and_then(|s: i64| {
+            DateTime::from_timestamp(s, 0)
+        }))
+    }
 }

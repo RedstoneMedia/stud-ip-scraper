@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::{bail, Context};
 use reqwest::blocking::{Client, ClientBuilder};
 use reqwest::header::{HeaderMap, HeaderValue};
+use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::course::MyCourses;
 
@@ -104,6 +105,7 @@ impl StudIp {
 }
 
 /// The necessary data, that is sent back from the [`IdentityProvider`] to the Service Provider, to complete the authentication
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SAMLAssertionData {
     pub relay_state: String,
     pub saml_response: String,

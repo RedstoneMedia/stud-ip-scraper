@@ -100,7 +100,7 @@ impl FileModule {
 }
 
 /// Contains common data for [`Folder`]s and [`File`]s
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilesObject {
     pub id: String,
     pub name: String,
@@ -110,7 +110,7 @@ pub struct FilesObject {
     pub mime_type: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct File {
     pub object: FilesObject,
     pub size: usize,
@@ -121,7 +121,7 @@ pub struct File {
     pub is_accessible: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Folder {
     pub object: FilesObject,
     pub object_count: usize,
@@ -129,7 +129,7 @@ pub struct Folder {
 }
 
 /// Combines the [`File`]s and [`Folder`]s inside a Folder
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FolderContents {
     pub folders: Vec<Folder>,
     pub files: Vec<File>
@@ -151,7 +151,7 @@ struct TheirFile {
     pub id: String,
     pub name: String,
     #[serde(rename = "download_url")]
-    pub download_url: String,
+    pub download_url: Option<String>,
     #[serde(deserialize_with = "from_str")]
     pub downloads: usize,
     #[serde(rename = "mime_type")]
