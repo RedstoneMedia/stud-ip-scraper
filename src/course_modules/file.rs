@@ -114,6 +114,12 @@ pub struct FilesObject {
     pub mime_type: String,
 }
 
+impl PartialEq for FilesObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct File {
     pub object: FilesObject,
@@ -125,11 +131,23 @@ pub struct File {
     pub is_accessible: bool,
 }
 
+impl PartialEq for File {
+    fn eq(&self, other: &Self) -> bool {
+        self.object == other.object
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Folder {
     pub object: FilesObject,
     pub object_count: usize,
     pub permissions: String
+}
+
+impl PartialEq for Folder {
+    fn eq(&self, other: &Self) -> bool {
+        self.object == other.object
+    }
 }
 
 /// Combines the [`File`]s and [`Folder`]s inside a Folder

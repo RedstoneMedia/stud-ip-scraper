@@ -8,7 +8,7 @@ pub(crate) const START_URL: &str = "https://studip.example.com/dispatch.php/star
 
 /// Stores source extra information for a piece of information \
 /// Sometimes necessary to make correct queries
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReferenceSource {
     Unspecified,
     StartPage,

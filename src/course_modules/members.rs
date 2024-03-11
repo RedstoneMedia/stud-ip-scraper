@@ -1,6 +1,7 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::{bail, Context};
+use anyhow::bail;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use chrono::serde::ts_seconds;
 use reqwest::Url;
@@ -43,12 +44,19 @@ impl MembersModule {
             .send()?;
         let html = Html::parse_document(&response.text()?);
         let table_selector = Selector::parse("#content table").unwrap();
-        let mut tables_members = html.select(&table_selector)
-            .map(|table| parse_member_table(table, ReferenceSource::Course(self.course_module_data.course_id.to_string())));
+        let mut tables_members : HashMap<_, _> = html.select(&table_selector)
+            .filter_map(|table| parse_member_table(table, ReferenceSource::Course(self.course_module_data.course_id.to_string())).ok())
+            .collect();
         Ok(CourseMembers {
-            lecturers: tables_members.next().context("No lectures table found")?,
-            tutors: tables_members.next().context("No tutors table found")?,
-            students: tables_members.next().context("No students table found")?,
+            lecturers: tables_members.remove(&Some("dozierende".to_string()))
+                .or_else(|| tables_members.remove(&Some("lecturers".to_string())))
+                .unwrap_or_default(),
+            tutors: tables_members.remove(&Some("tutor*innen".to_string()))
+                .or_else(|| tables_members.remove(&Some("tutors".to_string())))
+                .unwrap_or_default(),
+            students: tables_members.remove(&Some("studierende".to_string()))
+                .or_else(|| tables_members.remove(&Some("students".to_string())))
+                .unwrap_or_default(),
         })
     }
 
@@ -156,7 +164,7 @@ impl MembersModule {
             .send()?;
         let text = response.text()?;
         let html = Html::parse_fragment(&text);
-        Ok(parse_member_table(html.root_element(), ReferenceSource::Course(self.course_module_data.course_id.to_string())))
+        Ok(parse_member_table(html.root_element(), ReferenceSource::Course(self.course_module_data.course_id.to_string()))?.1)
     }
 
 }
@@ -181,11 +189,15 @@ pub struct Group {
     pub max_members: usize
 }
 
-fn parse_member_table(table_ref: ElementRef, reference_source: ReferenceSource) -> Vec<User> {
+fn parse_member_table(table_ref: ElementRef, reference_source: ReferenceSource) -> anyhow::Result<(Option<String>, Vec<User>)> {
+    let caption_selector = Selector::parse("caption").unwrap();
+    let caption = table_ref.select(&caption_selector)
+        .next()
+        .map(|elem| elem.text().collect::<String>().trim().to_lowercase());
     let rows_selector = Selector::parse("tbody tr").unwrap();
     let main_a_selector = Selector::parse("td a").unwrap();
     let img_selector = Selector::parse("img").unwrap();
-    table_ref.select(&rows_selector).filter_map(|row| {
+    Ok((caption, table_ref.select(&rows_selector).filter_map(|row| {
         let main_a_ref = row.select(&main_a_selector).next()?;
         let username = get_username_from_link_element(main_a_ref).ok()?;
         let avatar_img = main_a_ref.select(&img_selector).next()?.value();
@@ -197,7 +209,7 @@ fn parse_member_table(table_ref: ElementRef, reference_source: ReferenceSource) 
             avatar_src: Some(avatar_src.to_string()),
             source: reference_source.clone(),
         })
-    }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>()))
 }
 
 pub mod option_ts_seconds {

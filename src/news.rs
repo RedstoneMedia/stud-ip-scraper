@@ -20,6 +20,12 @@ pub struct NewsComment {
     pub time_since_string: String,
 }
 
+impl PartialEq for NewsComment {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 /// A news article, found in a news box \
 /// Can be parsed with [parse_news_box()](parse_news_box())
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +108,12 @@ impl NewsArticle {
         Ok(())
     }
 
+}
+
+impl PartialEq for NewsArticle {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 /// Parse a news box into a list of [news articles](NewsArticle) \

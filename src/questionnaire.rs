@@ -24,7 +24,8 @@ pub struct QuestionnaireOption {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum QuestionnaireKind {
     SingleChoice,
-    MultipleChoice
+    MultipleChoice,
+    Unknown
 }
 
 /// A single questionnaire
@@ -97,7 +98,7 @@ impl Questionnaire {
                 .to_string();
             let option_counts_string = result_option_elem.select(&options_counts_selector)
                 .next()
-                .context("Expected option text")?
+                .context("Expected option counts")?
                 .text()
                 .collect::<String>()
                 .trim()
@@ -150,6 +151,12 @@ impl Questionnaire {
         Ok(())
     }
 
+}
+
+impl PartialEq for Questionnaire {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 /// Parses a single [`Questionnaire`] from html, using the given [`ReferenceSource`]

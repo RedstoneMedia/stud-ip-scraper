@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::hash::Hash;
+use std::path::Path;
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
 use reqwest::IntoUrl;
@@ -15,12 +17,24 @@ use crate::StudIpClient;
 pub(crate) const PROFILE_URL: &str = "https://studip.example.com/dispatch.php/profile";
 
 /// Stores basic information about a user
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct User {
     pub display_name: String,
     pub username: String,
     pub avatar_src: Option<String>,
     pub source: ReferenceSource
+}
+
+impl PartialEq for User {
+    fn eq(&self, other: &Self) -> bool {
+        self.username == other.username
+    }
+}
+
+impl Hash for User {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.username.hash(state);
+    }
 }
 
 /// A linked [`Institute`] on a profile \
@@ -233,7 +247,7 @@ impl User {
             .filter(|elem| elem.select(&custom_category_abort_selector).next().is_none())
             .map(|elem| elem.parent_element().unwrap());
         let category_name_selector = Selector::parse("header > h1").unwrap();
-        let category_content_selector = Selector::parse("section .formatted-content").unwrap();
+        let category_content_selector = Selector::parse("section").unwrap();
         for category_elem in category_elements {
             let name = category_elem
                 .select(&category_name_selector)
@@ -254,6 +268,37 @@ impl User {
         Ok(profile)
     }
 
+}
+
+impl Profile {
+
+    /// Download the user's avatar and return its bytes
+    pub fn download_avatar(&self, client: &StudIpClient) -> anyhow::Result<Option<Vec<u8>>> {
+        if self.avatar_src.contains("nobody_normal") {
+            return Ok(None); // Default avatar
+        }
+        let img_bytes = client.get(&self.avatar_src)
+            .send()?
+            .bytes()?;
+        Ok(Some(img_bytes.to_vec()))
+    }
+
+    /// Downloads and saves the user's avatar to the given directory
+    pub fn save_avatar_to(&self, client: &StudIpClient, dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
+        if let Some(img_bytes) = self.download_avatar(client)? {
+            let path = dir_path.as_ref()
+                .join(format!("{}.png", self.username.replace("..", "")));
+            std::fs::write(path, img_bytes)?;
+        }
+        Ok(())
+    }
+
+}
+
+impl PartialEq for Profile {
+    fn eq(&self, other: &Self) -> bool {
+        self.username == other.username
+    }
 }
 
 /// Parses the username from a url
