@@ -1,6 +1,10 @@
 pub mod course_modules;
-pub mod common_data;
+pub mod user;
 pub mod course;
+pub mod news;
+pub mod questionnaire;
+pub mod ref_source;
+pub mod institute;
 
 use std::cell::RefCell;
 use std::fmt::Debug;

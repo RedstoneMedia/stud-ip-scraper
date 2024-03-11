@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::course_modules::{COURSE_MODULE_REGISTRY, CourseModule, CourseModuleData, register_default_course_modules, REGISTERED_DEFAULT_COURSE_MODULES};
 use crate::StudIpClient;
 
-const COURSES_URL : &str = "https://studip.example.com/dispatch.php/my_courses";
+const MY_COURSES_URL: &str = "https://studip.example.com/dispatch.php/my_courses";
+pub(crate) const COURSE_URL: &str = "https://studip.example.com/dispatch.php/course";
 const MODULES_QUERY_URL : &str = "https://studip.example.com/seminar_main.php";
 
 /// Represents a course and it's modules \
@@ -88,7 +89,7 @@ impl MyCourses {
     /// *Note: This is not done automatically*
     pub fn query(&mut self) -> anyhow::Result<()> {
         // Find MyCoursesData json in html
-        let r = self.client.get(COURSES_URL).send().unwrap();
+        let r = self.client.get(MY_COURSES_URL).send().unwrap();
         let html = Html::parse_document(&r.text().unwrap());
         // I LOVE JAVASCRIPT! HAHAHHAH
         let script_tag_selector = Selector::parse("script[type=\"text/javascript\"]").unwrap();

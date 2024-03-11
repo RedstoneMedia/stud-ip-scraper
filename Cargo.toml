@@ -1,6 +1,6 @@
 [package]
 name = "stud_ip_scraper"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "GPL-3.0"
 repository = "https://github.com/RedstoneMedia/stud-ip-scraper"
@@ -24,3 +24,4 @@ regex = "1.10.3"
 anyhow = "1.0"
 once_cell = "1.19.0"
 url = "2.5"
+itertools = "0.12.1"

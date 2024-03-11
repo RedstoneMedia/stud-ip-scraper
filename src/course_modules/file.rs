@@ -4,11 +4,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use reqwest::Url;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Deserializer, Serialize};
 use chrono::serde::ts_seconds;
-use crate::common_data::User;
+use crate::user::{get_username_from_url, User};
+use crate::ref_source::ReferenceSource;
 use crate::course_modules::{CourseModule, CourseModuleData};
 
 const FILE_MODULE_URL : &str = "https://studip.example.com/dispatch.php/course/files";
@@ -38,7 +38,7 @@ impl CourseModule for FileModule {
 
 impl FileModule {
 
-    fn parse_into_folder_contents(response_text: &str) -> anyhow::Result<FolderContents> {
+    fn parse_into_folder_contents(&self, response_text: &str) -> anyhow::Result<FolderContents> {
         let html = Html::parse_document(response_text);
         let files_form = html.select(&Selector::parse("#files_table_form").unwrap())
             .next()
@@ -52,8 +52,12 @@ impl FileModule {
         let their_files: Vec<TheirFile> = serde_json::from_str(data_files)?;
         let their_folders: Vec<TheirFolder> = serde_json::from_str(data_folders)?;
         Ok(FolderContents {
-            folders: their_folders.into_iter().map(|f| f.into()).collect(),
-            files: their_files.into_iter().map(|f| f.into()).collect(),
+            folders: their_folders.into_iter()
+                .map(|f| try_folder_from_their(f, &self.module_data.course_id))
+                .collect::<Result<_, _>>()?,
+            files: their_files.into_iter()
+                .map(|f| try_file_from_their(f, &self.module_data.course_id))
+                .collect::<Result<_, _>>()?,
         })
     }
 
@@ -62,7 +66,7 @@ impl FileModule {
         let response = self.module_data.client.get(FILE_MODULE_URL)
             .query(&[("cid", &self.module_data.course_id)])
             .send()?;
-        Self::parse_into_folder_contents(&response.text()?)
+        self.parse_into_folder_contents(&response.text()?)
     }
 
     /// Returns the [`FolderContents`] of a specific folder. \
@@ -71,7 +75,7 @@ impl FileModule {
         let response = self.module_data.client.get(format!("{}/index/{}", FILE_MODULE_URL, folder_id))
             .query(&[("cid", &self.module_data.course_id)])
             .send()?;
-        Self::parse_into_folder_contents(&response.text()?)
+        self.parse_into_folder_contents(&response.text()?)
     }
 
     /// Downloads a [`File`] and returns its bytes
@@ -177,29 +181,28 @@ struct TheirFile {
     pub is_accessible: bool,
 }
 
-impl From<TheirFile> for File {
-    fn from(value: TheirFile) -> Self {
-        Self {
-            object: FilesObject {
-                id: value.id,
-                name: value.name,
-                change_date: value.chdate,
-                author: User {
-                    display_name: value.author_name,
-                    username: username_from_author_url(&value.author_url),
-                    avatar_src: None,
-                },
-                icon: value.icon,
-                mime_type: value.mime_type,
+fn try_file_from_their(their: TheirFile, course_id: &str) -> anyhow::Result<File> {
+    Ok(File {
+        object: FilesObject {
+            id: their.id,
+            name: their.name,
+            change_date: their.chdate,
+            author: User {
+                display_name: their.author_name,
+                username: get_username_from_url(&their.author_url)?,
+                avatar_src: None,
+                source: ReferenceSource::Course(course_id.to_string()),
             },
-            size: value.size,
-            downloads: value.downloads,
-            restricted_terms_of_use: value.restricted_terms_of_use,
-            new: value.new,
-            is_editable: value.is_editable,
-            is_accessible: value.is_accessible,
-        }
-    }
+            icon: their.icon,
+            mime_type: their.mime_type,
+        },
+        size: their.size,
+        downloads: their.downloads,
+        restricted_terms_of_use: their.restricted_terms_of_use,
+        new: their.new,
+        is_editable: their.is_editable,
+        is_accessible: their.is_accessible,
+    })
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -226,30 +229,22 @@ struct TheirFolder {
     pub additional_columns: Vec<serde_json::Value>,
 }
 
-impl From<TheirFolder> for Folder {
-    fn from(value: TheirFolder) -> Self {
-        Self {
-            object: FilesObject {
-                id: value.id,
-                name: value.name,
-                change_date: value.chdate,
-                author: User {
-                    display_name: value.author_name,
-                    username: username_from_author_url(&value.author_url),
-                    avatar_src: None,
-                },
-                icon: value.icon,
-                mime_type: value.mime_type,
+fn try_folder_from_their(their: TheirFolder, course_id: &str) -> anyhow::Result<Folder> {
+    Ok(Folder {
+        object: FilesObject {
+            id: their.id,
+            name: their.name,
+            change_date: their.chdate,
+            author: User {
+                display_name: their.author_name,
+                username: get_username_from_url(&their.author_url)?,
+                avatar_src: None,
+                source: ReferenceSource::Course(course_id.to_string()),
             },
-            object_count: value.object_count,
-            permissions: value.permissions,
-        }
-    }
-}
-
-fn username_from_author_url(author_url: &str) -> String {
-    let author_url = Url::parse(author_url).unwrap();
-    author_url.query_pairs()
-        .find_map(|(key, value)| (key == "username").then(|| value.to_string()))
-        .unwrap()
+            icon: their.icon,
+            mime_type: their.mime_type,
+        },
+        object_count: their.object_count,
+        permissions: their.permissions,
+    })
 }

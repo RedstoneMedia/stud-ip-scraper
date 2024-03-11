@@ -7,7 +7,8 @@ use reqwest::Url;
 use scraper::{Element, ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use crate::course_modules::{CourseModule, CourseModuleData};
-use crate::common_data::User;
+use crate::user::{get_username_from_link_element, User};
+use crate::ref_source::ReferenceSource;
 
 const MEMBERS_URL : &str = "https://studip.example.com/dispatch.php/course/members";
 const GROUPS_URL : &str = "https://studip.example.com/dispatch.php/course/statusgroups";
@@ -42,7 +43,8 @@ impl MembersModule {
             .send()?;
         let html = Html::parse_document(&response.text()?);
         let table_selector = Selector::parse("#content table").unwrap();
-        let mut tables_members = html.select(&table_selector).map(parse_member_table);
+        let mut tables_members = html.select(&table_selector)
+            .map(|table| parse_member_table(table, ReferenceSource::Course(self.course_module_data.course_id.to_string())));
         Ok(CourseMembers {
             lecturers: tables_members.next().context("No lectures table found")?,
             tutors: tables_members.next().context("No tutors table found")?,
@@ -154,7 +156,7 @@ impl MembersModule {
             .send()?;
         let text = response.text()?;
         let html = Html::parse_fragment(&text);
-        Ok(parse_member_table(html.root_element()))
+        Ok(parse_member_table(html.root_element(), ReferenceSource::Course(self.course_module_data.course_id.to_string())))
     }
 
 }
@@ -179,18 +181,13 @@ pub struct Group {
     pub max_members: usize
 }
 
-fn parse_member_table(table_ref: ElementRef) -> Vec<User> {
+fn parse_member_table(table_ref: ElementRef, reference_source: ReferenceSource) -> Vec<User> {
     let rows_selector = Selector::parse("tbody tr").unwrap();
     let main_a_selector = Selector::parse("td a").unwrap();
     let img_selector = Selector::parse("img").unwrap();
     table_ref.select(&rows_selector).filter_map(|row| {
         let main_a_ref = row.select(&main_a_selector).next()?;
-        let main_a = main_a_ref.value();
-        let profile_url = Url::parse(main_a.attr("href")?).ok()?;
-        let username = profile_url.query_pairs()
-            .find_map(|(key, value)| (key == "username")
-                .then(|| value.to_string())
-            )?;
+        let username = get_username_from_link_element(main_a_ref).ok()?;
         let avatar_img = main_a_ref.select(&img_selector).next()?.value();
         let avatar_src = avatar_img.attr("src")?;
         let display_name = main_a_ref.text().collect::<String>().trim().to_string();
@@ -198,6 +195,7 @@ fn parse_member_table(table_ref: ElementRef) -> Vec<User> {
             display_name,
             username,
             avatar_src: Some(avatar_src.to_string()),
+            source: reference_source.clone(),
         })
     }).collect::<Vec<_>>()
 }
@@ -211,7 +209,7 @@ pub mod option_ts_seconds {
             S: Serializer,
     {
         match date {
-            Some(date) => ts_seconds::serialize(&date, serializer),
+            Some(date) => ts_seconds::serialize(date, serializer),
             None => serializer.serialize_none(),
         }
     }
