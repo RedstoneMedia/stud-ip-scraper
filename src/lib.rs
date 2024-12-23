@@ -38,6 +38,8 @@ impl StudIp {
             .context("Could not read from creds.txt")?;
         let (username, password) = creds.split_once('\n')
             .context("creds.txt did not have newline seperated username and password")?;
+        let username = username.trim();
+        let password = password.trim();
 
         let mut target_url = Url::parse(&format!("https://{}", self.client.host))?;
         target_url.query_pairs_mut()
@@ -69,7 +71,7 @@ impl StudIp {
     fn make_client() -> anyhow::Result<Client> {
         // Setup client with headers
         let mut default_headers = HeaderMap::new();
-        default_headers.insert("User-Agent", HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0"));
+        default_headers.insert("User-Agent", HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"));
         default_headers.insert("Accept", HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"));
         default_headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.5"));
         default_headers.insert("Upgrade-Insecure-Requests", HeaderValue::from_static("1"));
@@ -81,6 +83,7 @@ impl StudIp {
             .https_only(true)
             .cookie_store(true)
             .timeout(Duration::from_secs(8))
+            .use_rustls_tls()
             .default_headers(default_headers)
             .gzip(true)
             .build()
@@ -161,7 +164,7 @@ pub trait IdentityProvider {
     /// Attempts to Log in the client with a username and password. \
     /// Also accepts a `url`, that is derived from the [`IdentityProvider::entity_url()`], but with potentially more data, from the Service Provider \
     /// Returns the [`SAMLAssertionData`], if successful.
-    fn login(client: &Client, url: impl reqwest::IntoUrl, username: &str, password: &str) -> anyhow::Result<SAMLAssertionData>;
+    fn login(client: &Client, url: impl reqwest::IntoUrl + Clone, username: &str, password: &str) -> anyhow::Result<SAMLAssertionData>;
 
     /// The entity url of the Identify Provider, also sometimes called `entityID`
     fn entity_url() -> &'static str;
