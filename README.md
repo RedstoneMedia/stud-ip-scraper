@@ -19,6 +19,7 @@ Here are some key 🔑 things that can be achieved with this crate 📦:
 - Querying the members of a course (students, lecturers, tutors) 🔎👨‍🏫
 - Querying the groups of a course 🔎👥
 - Joining and leaving course groups 🚪
+- Executing filtered global searches on the entire instance 🔎🌎
 
 ## Usage
 To use this crate, you will need to create an instance of the `StudIp` struct.
