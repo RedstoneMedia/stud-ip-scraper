@@ -5,6 +5,7 @@ pub mod news;
 pub mod questionnaire;
 pub mod ref_source;
 pub mod institute;
+pub mod search;
 
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -16,6 +17,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::course::MyCourses;
+use crate::search::{SearchFilter, SearchResult};
 
 const LOGIN_URL : &str = "https://studip.example.com/Shibboleth.sso/Login";
 const SAML_RESPONSE_URL: &str = "https://studip.example.com/Shibboleth.sso/SAML2/POST";
@@ -107,6 +109,11 @@ impl StudIp {
         };
         stud_ip.login_client::<IdP>(creds_path)?;
         Ok(stud_ip)
+    }
+
+    /// Does a global search for the given `text`, providing at most `max_results` results per category using the given [`SearchFilter`].
+    pub fn global_search(&self, text: &str, max_results: usize, filter: &SearchFilter) -> anyhow::Result<SearchResult> {
+        search::global_search(&self.client, text, max_results, filter)
     }
 
 }
