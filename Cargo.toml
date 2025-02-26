@@ -1,6 +1,6 @@
 [package]
 name = "stud_ip_scraper"
-version = "0.2.2"
+version = "1.0.0"
 edition = "2021"
 license = "GPL-3.0"
 repository = "https://github.com/RedstoneMedia/stud-ip-scraper"
@@ -10,7 +10,7 @@ keywords = ["stud-ip", "StudIP", "web-scraping", "scraper"]
 categories = ["web-programming::http-client"]
 
 [features]
-verbose = []
+verbose = ["dep:log"]
 rate_limiting = []
 default = ["rate_limiting"]
 
@@ -25,3 +25,4 @@ anyhow = "1"
 once_cell = "1.20"
 url = "2.5"
 itertools = "0.14"
+log = { version = "0.4", optional = true }

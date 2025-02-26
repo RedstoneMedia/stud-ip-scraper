@@ -89,8 +89,9 @@ impl MyCourses {
     /// *Note: This is not done automatically*
     pub fn query(&mut self) -> anyhow::Result<()> {
         // Find MyCoursesData json in html
-        let r = self.client.get(MY_COURSES_URL).send().unwrap();
-        let html = Html::parse_document(&r.text().unwrap());
+        let r = self.client.get(MY_COURSES_URL).send()?;
+        let text = r.text().context("failed to get response text")?;
+        let html = Html::parse_document(&text);
         // I LOVE JAVASCRIPT! HAHAHHAH
         let script_tag_selector = Selector::parse("script[type=\"text/javascript\"]").unwrap();
         let json_string = html.select(&script_tag_selector).find_map(|element| {
