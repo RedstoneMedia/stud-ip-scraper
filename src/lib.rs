@@ -6,6 +6,7 @@ pub mod questionnaire;
 pub mod ref_source;
 pub mod institute;
 pub mod search;
+pub mod translations;
 
 use std::cell::RefCell;
 use std::fmt::Debug;

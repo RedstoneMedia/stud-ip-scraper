@@ -3,16 +3,18 @@ use std::hash::Hash;
 use std::path::Path;
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
+use log::warn;
 use reqwest::IntoUrl;
 use scraper::{Element, ElementRef, Html, Selector};
 use scraper::selectable::Selectable;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use crate::institute::Institute;
+use crate::institute::{parse_institute_link, Institute};
 use crate::news::{NewsArticle, parse_news_box};
 use crate::questionnaire::{parse_questionnaire, Questionnaire};
 use crate::ref_source::ReferenceSource;
 use crate::StudIpClient;
+use crate::translations::local_to_key;
 
 pub(crate) const PROFILE_URL: &str = "https://studip.example.com/dispatch.php/profile";
 
@@ -206,21 +208,20 @@ impl User {
             .context("Expected general information content box")?;
         let dt_dd_selector = Selector::parse("dt, dd").unwrap();
         for (key_elem, value_elem) in general_info_elem.select(&dt_dd_selector).tuples() {
-            let key = key_elem.text().collect::<String>().trim().to_string().to_lowercase();
-            if key.contains("e-mail") {
-                profile.email = Some(value_elem.text().collect::<String>().trim().to_string());
-            } else if key.contains("home telephone number") || key.contains("telefon (privat)") {
-                profile.home_telephone_number = Some(value_elem.text().collect::<String>().trim().to_string());
-            } else if key.contains("mobile telephone") || key.contains("mobiltelefon") {
-                profile.mobile_phone_number = Some(value_elem.text().collect::<String>().trim().to_string());
-            } else if key.contains("address") {
-                profile.address = Some(value_elem.text().collect::<String>().trim().to_string());
-            } else if key.contains("homepage") {
-                profile.homepage = Some(value_elem.text().collect::<String>().trim().to_string());
-            } else if key.contains("work") || key.contains("arbeite") {
-                profile.work_institute = parse_profile_institutes(value_elem)?;
-            } else if key.contains("study") || key.contains("studiere") {
-                profile.study_institutes = parse_profile_institutes(value_elem)?;
+            let local = key_elem.text().collect::<String>();
+            let key = local_to_key(&local);
+            let text_value = value_elem.text().collect::<String>().trim().to_string();
+            match key {
+                "E_MAIL" => profile.email = Some(text_value),
+                "HOME_TELEPHONE_NUMBER" => profile.home_telephone_number = Some(text_value),
+                "MOBILE_TELEPHONE_NUMBER" => profile.mobile_phone_number = Some(text_value),
+                "ADDRESS" => profile.address = Some(text_value),
+                "HOMEPAGE" => profile.homepage = Some(text_value),
+                "WHERE_I_WORK" => profile.work_institute = parse_profile_institutes(value_elem)?,
+                "WHERE_I_STUDY" => profile.study_institutes = parse_profile_institutes(value_elem)?,
+                _ => {
+                    warn!("Unknown general user info key: {:?}", key);
+                }
             }
         }
 
@@ -343,18 +344,7 @@ fn parse_profile_institutes(element: ElementRef) -> anyhow::Result<Vec<ProfileIn
         let institute_link_elem = profile_institute_elem.select(&a_tag_selector)
             .next()
             .context("Expected institute link")?;
-        let institute_name = institute_link_elem.text()
-            .collect::<String>()
-            .trim()
-            .to_string();
-        let institute_url = Url::parse(institute_link_elem.attr("href")
-            .context("Expected institute href")?
-        )?;
-        let institute_id = institute_url.query_pairs()
-            .find_map(|(key, value)| (key == "auswahl" || key == "selection")
-            .then(|| value.to_string()))
-            .context("Expected institute id")?;
-
+        let institute = parse_institute_link(institute_link_elem)?;
         let sub_flags: Vec<String> = profile_institute_elem.select(&sub_flags_selector)
             .map(|sub_flag_elem| sub_flag_elem.text()
                 .collect::<String>()
@@ -381,10 +371,7 @@ fn parse_profile_institutes(element: ElementRef) -> anyhow::Result<Vec<ProfileIn
         }).collect();
 
         institutes.push(ProfileInstituteData {
-            institute: Institute {
-                name: institute_name,
-                id: institute_id
-            },
+            institute,
             sub_flags,
             extra_data
         });

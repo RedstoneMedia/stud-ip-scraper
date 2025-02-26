@@ -60,6 +60,11 @@ impl Course {
         Ok(())
     }
 
+    /// Gets a downcasted [`CourseModule`], by its Type on a [Course](crate::course::Course)
+    pub fn get_module<Module: CourseModule>(&mut self) -> Option<&mut Module> {
+        self.modules.iter_mut().find_map(|module| module.as_any().downcast_mut::<Module>())
+    }
+
 }
 
 /// Contains all the courses, and some addition data, of the current user

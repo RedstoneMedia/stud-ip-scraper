@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use chrono::NaiveDate;
-use scraper::{Element, ElementRef, Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::StudIpClient;
@@ -168,8 +168,6 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
         let content_html = article_elem.select(&news_content_selector)
             .next()
             .context("Expected news content")?
-            .first_element_child()
-            .context("Expected content")?
             .inner_html();
         news_articles.push(NewsArticle {
             id: article_id,

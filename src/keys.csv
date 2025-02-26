@@ -1,0 +1,21 @@
+key,en,de
+E_MAIL,e-mail,e-mail
+HOME_TELEPHONE_NUMBER,home telephone number,telefon (privat)
+MOBILE_TELEPHONE_NUMBER,mobile telephone,mobiltelefon
+ADDRESS,address,addresse
+HOMEPAGE,homepage,homepage
+WHERE_I_WORK,where i work,wo ich arbeite
+WHERE_I_STUDY,where i study,wo ich studiere
+COURSE_NAME,course name,veranstaltungsname
+SUBTITLE,subtitle,untertitel
+COURSE_NUMBER,course number,veranstaltungsnummer
+SEMESTER,semester,semester
+NUMBER_OF_PARTICIPANTS,current number of participants,aktuelle anzahl der teilnehmenden
+HOME_INSTITUTE,home institute,heimat-einrichtung
+PARTICIPATING_INSTITUTES,participating institutes,beteiligte einrichtungen
+COURSE_TYPE,courses type,veranstaltungstyp
+FIRST_DATE,first date,erster termin
+TYPE_FORM,type/form,art/form
+LANGUAGE,language,sprache
+SWS,sws,sws
+ECTS_POINTS,ects points,ects-punkte

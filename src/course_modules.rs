@@ -1,5 +1,6 @@
 pub mod file;
 pub mod members;
+pub mod overview;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -8,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 pub use file::FileModule;
 pub use members::MembersModule;
+use crate::course_modules::overview::OverviewModule;
 use crate::StudIpClient;
 
 type ModuleConstructor = fn(Arc<CourseModuleData>) -> Box<dyn CourseModule>;
@@ -35,14 +37,6 @@ pub fn register_course_module<M: CourseModule + 'static>() {
     registry.insert(M::name(), |data| Box::new(M::new(data)));
 }
 
-/// Gets a downcasted [`CourseModule`], by its Type on a [Course](crate::course::Course)
-#[macro_export]
-macro_rules! get_module {
-    ($course:expr, $module_type:ty) => {{
-        $course.modules.iter_mut().find_map(|module| module.as_any().downcast_mut::<$module_type>())
-    }};
-}
-
 /// Some data, that is required for any [`CourseModule`]
 #[derive(Debug)]
 pub struct CourseModuleData {
@@ -53,4 +47,5 @@ pub struct CourseModuleData {
 pub (crate) fn register_default_course_modules() {
     register_course_module::<FileModule>();
     register_course_module::<MembersModule>();
+    register_course_module::<OverviewModule>();
 }
