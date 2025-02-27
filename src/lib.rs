@@ -116,7 +116,7 @@ pub struct SAMLAssertionData {
     pub saml_response: String,
 }
 
-/// An Identity Provider is required to log in via SSO \
+/// An Identity Provider is required to log in via SSO
 ///
 /// This is required as the login specifics might be drastically different for every institution.
 /// Currently, this crate does not provide a specific Identity provider, meaning you will have to implement one yourself for your specific Educational institutions. \
@@ -169,7 +169,7 @@ pub trait IdentityProvider {
 
 }
 
-/// A builder to configure a [`StudIpClient`] used for operating within [`StudIP`]
+/// A builder to configure a [`StudIpClient`] used for operating within [`StudIp`]
 ///
 /// This is a restricted wrapper of the [`reqwest::blocking::RequestBuilder`]
 pub struct StudIpClientBuilder {
@@ -205,7 +205,7 @@ impl StudIpClientBuilder {
     /// Controls the use of certificate validation.
     ///
     /// This introduces significant vulnerabilities, and should only be used as a last resort. \
-    /// One such case is debugging traffic using a [`proxy()`] to inspect encrypted traffic.
+    /// One such case is debugging traffic using a [`StudIpClientBuilder::proxy()`] to inspect encrypted traffic.
     pub fn danger_accept_invalid_certs(mut self, danger_accept_invalid_certs: bool) -> Self {
         self.danger_accept_invalid_certs = danger_accept_invalid_certs;
         self
@@ -235,28 +235,28 @@ impl StudIpClientBuilder {
     /// Builds a [`StudIpClient`] using the current configuration
     pub fn build(self) -> anyhow::Result<StudIpClient> {
         // Setup client with basic headers
-        let mut default_headers = HeaderMap::new();
-        default_headers.insert("User-Agent", HeaderValue::from_static(self.user_agent));
-        default_headers.insert("Accept", HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"));
-        default_headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.5"));
-        default_headers.insert("Upgrade-Insecure-Requests", HeaderValue::from_static("1"));
-        default_headers.insert("DNT", HeaderValue::from_static("1"));
-        default_headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("document"));
-        default_headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("navigate"));
-        default_headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-origin"));
-        default_headers.insert("Sec-Fetch-User", HeaderValue::from_static("?1"));
-        default_headers.insert("TE", HeaderValue::from_static("trailers"));
-        default_headers.insert("Priority", HeaderValue::from_static("u=0, i"));
+            let mut default_headers = HeaderMap::new();
+            default_headers.insert("User-Agent", HeaderValue::from_static(self.user_agent));
+            default_headers.insert("Accept", HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"));
+            default_headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.5"));
+            default_headers.insert("Upgrade-Insecure-Requests", HeaderValue::from_static("1"));
+            default_headers.insert("DNT", HeaderValue::from_static("1"));
+            default_headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("document"));
+            default_headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("navigate"));
+            default_headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-origin"));
+            default_headers.insert("Sec-Fetch-User", HeaderValue::from_static("?1"));
+            default_headers.insert("TE", HeaderValue::from_static("trailers"));
+            default_headers.insert("Priority", HeaderValue::from_static("u=0, i"));
 
-        let cookie_jar = Arc::new(Jar::default());
-        let mut client_builder = ClientBuilder::new()
-            .https_only(true)
-            .danger_accept_invalid_certs(self.danger_accept_invalid_certs)
-            .cookie_provider(cookie_jar.clone())
-            .timeout(self.timeout)
-            .use_rustls_tls()
-            .default_headers(default_headers)
-            .gzip(true);
+            let cookie_jar = Arc::new(Jar::default());
+            let mut client_builder = ClientBuilder::new()
+                .https_only(true)
+                .danger_accept_invalid_certs(self.danger_accept_invalid_certs)
+                .cookie_provider(cookie_jar.clone())
+                .timeout(self.timeout)
+                .use_rustls_tls()
+                .default_headers(default_headers)
+                .gzip(true);
 
         if let Some(proxy) = self.proxy {
             client_builder = client_builder.proxy(proxy);

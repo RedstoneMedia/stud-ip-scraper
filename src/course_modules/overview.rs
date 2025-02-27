@@ -35,7 +35,7 @@ impl CourseModule for OverviewModule {
     }
 }
 
-/// Various details about the [`Course`]
+/// Various details about the [`crate::course::Course`]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CourseDetails {
     pub name: String,

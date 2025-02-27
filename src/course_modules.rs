@@ -2,14 +2,16 @@ pub mod file;
 pub mod members;
 pub mod overview;
 
+// Re-exports
+pub use file::FileModule;
+pub use members::MembersModule;
+pub use overview::OverviewModule;
+
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
-pub use file::FileModule;
-pub use members::MembersModule;
-use crate::course_modules::overview::OverviewModule;
 use crate::StudIpClient;
 
 type ModuleConstructor = fn(Arc<CourseModuleData>) -> Box<dyn CourseModule>;

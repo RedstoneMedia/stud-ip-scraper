@@ -18,16 +18,20 @@ Here are some key 🔑 things that can be achieved with this crate 📦:
 - Downloading files 📥💨
 - Querying the members of a course (students, lecturers, tutors) 🔎👨‍🏫
 - Querying the groups of a course 🔎👥
+- Querying the details of a course 🔎🕵️‍♂️
+- Querying the announcements of a course 🔎📰
 - Joining and leaving course groups 🚪
 - Executing filtered global searches on the entire instance 🔎🌎
 
 ## Usage
-To use this crate, you will need to create an instance of the `StudIp` struct.
-You can do this with the `login` method:
+To use this crate, you will need to create an instance of the `StudIp` struct. \
+You can do this with the `login` method on the client builder:
 ```rust
-use stud_ip::StudIp;
+use stud_ip::StudIpClientBuilder;
 
-let stud_ip = StudIp::login<MyIdP>("credentials.txt", "studip.example.com").unwrap();
+let mut stud_ip = StudIpClientBuilder::new("studip.example.com")
+    .login::<MyIdP>("creds.txt")
+    .unwrap();
 ```
 
 *NOTE:* If you want to use the `login` method, you will need to implement the `IdentityProvider` trait for your specific institution first.

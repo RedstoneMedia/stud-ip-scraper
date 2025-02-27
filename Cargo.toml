@@ -1,6 +1,6 @@
 [package]
 name = "stud_ip_scraper"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 license = "GPL-3.0"
 repository = "https://github.com/RedstoneMedia/stud-ip-scraper"
@@ -16,7 +16,7 @@ default = ["rate_limiting"]
 
 [dependencies]
 reqwest = { version = "0.12", features = ["blocking", "cookies", "gzip", "rustls-tls", "json"] }
-scraper = "0.19"
+scraper = "0.23"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
