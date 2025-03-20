@@ -14,7 +14,7 @@ const MODULES_QUERY_URL : &str = "https://studip.example.com/seminar_main.php";
 /// A singular module can be accessed, by type with the [get_module()](Course::get_module) function.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Course {
-    // Json data
+    // All sorts of data
     /// The course ID
     pub id: String,
     /// The courses Name
@@ -24,6 +24,30 @@ pub struct Course {
     /// The group index in which the current user has added this course \
     /// Corresponds to the `groups` filed of the [`MyCourses`] struct
     pub group: usize,
+    /// The children of this course
+    pub children: Vec<serde_json::Value>,
+    /// The parent of this course
+    pub parent: Option<serde_json::Value>,
+    /// The icon url of the course
+    #[serde(rename = "avatar")]
+    pub icon_url: String,
+    /// Navigation items of the course
+    pub navigation: Vec<serde_json::Value>,
+    // Flags
+    /// If the admission to this course is binding
+    pub admission_binding: bool,
+    /// If you're a teacher of this course?
+    pub is_teacher: bool,
+    /// If the course is a study group
+    pub is_studygroup: bool,
+    /// If the course is hidden
+    pub is_hidden: bool,
+    /// If you are a "deputy" or moderator for this course.
+    pub is_deputy: bool,
+    /// If this course is a group
+    pub is_group: bool,
+    /// If there is extra navigation?
+    pub extra_navigation: bool,
 
     // Custom data
     #[serde(skip)]
@@ -70,9 +94,13 @@ impl Course {
 /// Contains all the courses, and some addition data, of the current user
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MyCourses {
+    #[serde(rename = "setCourses")]
     pub courses: HashMap<String, Course>,
+    #[serde(rename = "setGroups")]
     pub groups: Vec<serde_json::Value>,
+    #[serde(rename = "setUserId")]
     pub user_id: String,
+    #[serde(rename = "setConfig")]
     pub config: HashMap<String, serde_json::Value>,
     #[serde(skip)]
     client: Arc<StudIpClient>
@@ -98,20 +126,11 @@ impl MyCourses {
         let text = r.text().context("failed to get response text")?;
         let html = Html::parse_document(&text);
         // I LOVE JAVASCRIPT! HAHAHHAH
-        let script_tag_selector = Selector::parse("script[type=\"text/javascript\"]").unwrap();
-        let json_string = html.select(&script_tag_selector).find_map(|element| {
-            let inner = element.inner_html();
-            if !inner.contains("window.STUDIP.MyCoursesData") {
-                return None;
-            }
-            let (_, json_str) = inner.split_once('=').unwrap();
-            let json_string = json_str.replace('\n', "");
-            Some(json_string)
-        }).context("Expected MyCoursesData to be present in html")?;
+        let script_tag_selector = Selector::parse("script#vue-vuex-store-data-mycourses").unwrap();
+        let script = html.select(&script_tag_selector).next().context("Expected MyCoursesData to be present in html")?;
+        let script_string = script.inner_html();
         // Parse MyCoursersData
-        let json_str = json_string.trim()
-            .trim_end_matches(';');
-        let mut new_my_courses: Self = serde_json::from_str(json_str)
+        let mut new_my_courses: Self = serde_json::from_str(script_string.trim())
             .context("Could not parse MyCoursesData")?;
         // Copy api handle to courses
         for course in new_my_courses.courses.values_mut() {
