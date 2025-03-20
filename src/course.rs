@@ -11,7 +11,7 @@ pub(crate) const COURSE_URL: &str = "https://studip.example.com/dispatch.php/cou
 const MODULES_QUERY_URL : &str = "https://studip.example.com/seminar_main.php";
 
 /// Represents a course and it's modules \
-/// A singular module can be accessed, by type with the [get_module!()](crate::get_module!()) macro.
+/// A singular module can be accessed, by type with the [get_module()](Course::get_module) function.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Course {
     // Json data

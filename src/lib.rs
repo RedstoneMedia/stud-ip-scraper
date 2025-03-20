@@ -26,6 +26,7 @@ use log::{trace, debug, info};
 
 const LOGIN_URL : &str = "https://studip.example.com/Shibboleth.sso/Login";
 const SAML_RESPONSE_URL: &str = "https://studip.example.com/Shibboleth.sso/SAML2/POST";
+const LOGIN_TARGET_URL: &str = "https://studip.uni-hannover.de/dispatch.php/login";
 const START_URL: &str = "https://studip.example.com/dispatch.php/start";
 
 /// The entry point into interacting with StudIp
@@ -50,7 +51,8 @@ impl StudIp {
         let username = username.trim();
         let password = password.trim();
 
-        let mut target_url = Url::parse(&format!("https://{}/index.php", self.client.host))?;
+        let mut target_url = Url::parse(LOGIN_TARGET_URL).expect("Target login URL should always be parsable");
+        target_url.set_host(Some(self.client.host))?;
         target_url.query_pairs_mut()
             .append_pair("sso", "shib")
             .append_pair("again", "yes")
