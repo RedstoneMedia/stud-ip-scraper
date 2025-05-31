@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use anyhow::Context;
+use itertools::Itertools;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use crate::course_modules::{COURSE_MODULE_REGISTRY, CourseModule, CourseModuleData, register_default_course_modules, REGISTERED_DEFAULT_COURSE_MODULES};
@@ -55,7 +56,7 @@ pub struct Course {
     /// Needs to be queried with [`Course::query_modules()`]
     pub modules: Vec<Box<dyn CourseModule>>,
     #[serde(skip)]
-    client: Arc<StudIpClient>
+    client: Rc<StudIpClient>
 }
 
 impl Course {
@@ -69,9 +70,9 @@ impl Course {
         let response = self.client.get(MODULES_QUERY_URL)
             .query(&[("auswahl", &self.id)])
             .send()?;
-        let html = Html::parse_document(&response.text().unwrap());
+        let html = Html::parse_document(&response.text()?);
         let tabs_selector = Selector::parse("#tabs li").unwrap();
-        let module_data = Arc::new(CourseModuleData {
+        let module_data = Rc::new(CourseModuleData {
             course_id: self.id.clone(),
             client: self.client.clone(),
         });
@@ -91,27 +92,69 @@ impl Course {
 
 }
 
+/// Represents a set of groups, containing grouping information for courses (e.g. by semester).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SetGroup {
+    pub id: i64,
+    /// The name of the set (e.g. semester name)
+    pub name: String,
+    /// The entries of the set groups (Only ever observed one element)
+    #[serde(rename = "data")]
+    pub entries: Vec<CourseEntries>,
+}
+
+impl SetGroup {
+
+    /// Gets all the courses in the set group.
+    pub fn get_courses<'a>(&self, courses: &'a mut HashMap<String, Course>) -> Vec<&'a mut Course> {
+        self.entries
+            .iter()
+            .flat_map(|entry| entry.ids.iter())
+            .unique() // Collect each ID exactly once (No aliasing)
+            .filter_map(|id| {
+                // Get courses and store raw pointer to avoid re-borrowing errors
+                courses.get_mut(id).map(|c_ref| c_ref as *mut Course)
+            })
+            .map(|raw| {
+                // SAFETY: We know each `raw` came from a distinct `&mut Course` above,
+                // and all these entries remain valid for `'a`. So it’s safe to re‐borrow.
+                unsafe { &mut *raw }
+            })
+            .collect()
+    }
+
+}
+
+/// Represents individual entries within a [`SetGroup`], containing course information.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CourseEntries {
+    pub id: String,
+    pub label: bool,
+    /// A list of course IDs
+    pub ids: Vec<String>,
+}
+
 /// Contains all the courses, and some addition data, of the current user
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MyCourses {
     #[serde(rename = "setCourses")]
     pub courses: HashMap<String, Course>,
     #[serde(rename = "setGroups")]
-    pub groups: Vec<serde_json::Value>,
+    pub set_groups: Vec<SetGroup>,
     #[serde(rename = "setUserId")]
     pub user_id: String,
     #[serde(rename = "setConfig")]
     pub config: HashMap<String, serde_json::Value>,
     #[serde(skip)]
-    client: Arc<StudIpClient>
+    client: Rc<StudIpClient>
 }
 
 impl MyCourses {
 
-    pub(crate) fn from_client(client: Arc<StudIpClient>) -> Self {
+    pub(crate) fn from_client(client: Rc<StudIpClient>) -> Self {
         Self {
             courses: Default::default(),
-            groups: Default::default(),
+            set_groups: Default::default(),
             user_id: Default::default(),
             config: Default::default(),
             client,
@@ -152,6 +195,16 @@ impl MyCourses {
         self.courses.iter_mut()
             .find(|(_, course)| course.name == name)
             .map(|(_, course)| course)
+    }
+
+    /// Retrieves all courses belonging to a specific set group by name.
+    ///
+    /// Useful when trying to find all courses that are in a specific semester.
+    pub fn get_courses_by_set_group_name(&mut self, set_group_name: &str) -> Vec<&mut Course> {
+        let Some(set_group) = self.set_groups.iter()
+            .find(|set_group| set_group.name == set_group_name)
+        else { return vec![] };
+        set_group.get_courses(&mut self.courses)
     }
 
 }

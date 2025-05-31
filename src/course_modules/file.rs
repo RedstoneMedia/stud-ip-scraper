@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::path::Path;
+use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::Arc;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use scraper::{Html, Selector};
@@ -17,11 +17,11 @@ const DOWNLOAD_URL : &str = "https://studip.example.com/sendfile.php";
 /// Module, that enables operating on the files and folders of a course
 #[derive(Debug)]
 pub struct FileModule {
-    module_data: Arc<CourseModuleData>
+    module_data: Rc<CourseModuleData>
 }
 
 impl CourseModule for FileModule {
-    fn new(data: Arc<CourseModuleData>) -> Self {
+    fn new(data: Rc<CourseModuleData>) -> Self {
         Self {
             module_data: data,
         }

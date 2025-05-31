@@ -90,7 +90,7 @@ impl Serialize for SearchFilter {
 }
 
 
-const GLOBAL_SEARCH_URL: &'static str = "https://studip.example.com/dispatch.php/globalsearch/find";
+const GLOBAL_SEARCH_URL: &str = "https://studip.example.com/dispatch.php/globalsearch/find";
 
 /// Represents the categorized results found by [`global_search()`]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -225,7 +225,7 @@ pub fn global_search(client: &StudIpClient, text: &str, max_results: usize, filt
     if text.trim() == "[]" {
         return Ok(Default::default());
     }
-    Ok(serde_json::from_str(&text).context("Could not parse search response json")?)
+    serde_json::from_str(&text).context("Could not parse search response json")
 }
 
 /// Strips the html <mark> tag from the given string.

@@ -10,11 +10,12 @@ pub use overview::OverviewModule;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use crate::StudIpClient;
 
-type ModuleConstructor = fn(Arc<CourseModuleData>) -> Box<dyn CourseModule>;
+type ModuleConstructor = fn(Rc<CourseModuleData>) -> Box<dyn CourseModule>;
 
 pub(crate) static COURSE_MODULE_REGISTRY: once_cell::sync::Lazy<Arc<Mutex<HashMap<&'static str, ModuleConstructor>>>> = once_cell::sync::Lazy::new(Default::default);
 // Simply keeps track, if the default models have already been registered
@@ -23,7 +24,7 @@ pub(crate) static REGISTERED_DEFAULT_COURSE_MODULES: once_cell::sync::OnceCell<(
 
 pub trait CourseModule: Debug + Any {
     /// Constructs a new instance of the Module, for a specific [Course](crate::course::Course)
-    fn new(data: Arc<CourseModuleData>) -> Self where Self: Sized;
+    fn new(data: Rc<CourseModuleData>) -> Self where Self: Sized;
 
     /// The name of the course module. \
     /// Needs to correspond to the id of the tab in the HTML (without the prefix: `nav_course_`)
@@ -43,7 +44,7 @@ pub fn register_course_module<M: CourseModule + 'static>() {
 #[derive(Debug)]
 pub struct CourseModuleData {
     pub course_id: String,
-    pub client: Arc<StudIpClient>,
+    pub client: Rc<StudIpClient>,
 }
 
 pub (crate) fn register_default_course_modules() {

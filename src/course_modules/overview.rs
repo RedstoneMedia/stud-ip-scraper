@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::Arc;
+use std::rc::Rc;
 use anyhow::Context;
 use itertools::Itertools;
 use log::warn;
@@ -16,11 +16,11 @@ const DETAILS_URL : &str = "https://studip.example.com/dispatch.php/course/detai
 
 #[derive(Debug)]
 pub struct OverviewModule {
-    module_data: Arc<CourseModuleData>
+    module_data: Rc<CourseModuleData>
 }
 
 impl CourseModule for OverviewModule {
-    fn new(data: Arc<CourseModuleData>) -> Self {
+    fn new(data: Rc<CourseModuleData>) -> Self {
         Self {
             module_data: data
         }
@@ -62,10 +62,16 @@ impl OverviewModule {
             .query(&[("cid", &self.module_data.course_id)])
             .send()?;
         let html = Html::parse_document(&response.text()?);
+
         let announcements_selector = Selector::parse("#content article.studip").unwrap();
+        let news_header_selector = Selector::parse("header > h1 > .icon-shape-news").unwrap();
         let Some(news_box) = html.select(&announcements_selector).next() else {
             return Ok(vec![]);
         };
+        // Check if it is actually a news box (And not a schedule box)
+        if news_box.select(&news_header_selector).next().is_none() {
+            return Ok(vec![]);
+        }
         let news = parse_news_box(news_box, &ReferenceSource::Course(self.module_data.course_id.clone()))?;
         Ok(news)
     }
