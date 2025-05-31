@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use chrono::NaiveDate;
-use scraper::{ElementRef, Html, Selector};
+use scraper::{Element, ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::StudIpClient;
@@ -46,6 +46,8 @@ pub struct NewsArticle {
     pub visits: usize,
     /// The number of comments of the article
     pub n_comments: usize,
+    /// If the article was viewed for first time
+    pub is_new: bool,
     /// The comments of the article \
     /// Is only filled by calling [NewsArticle::query_comments()](NewsArticle::query_comments())
     pub comments: Vec<NewsComment>
@@ -148,7 +150,8 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
             .collect::<String>()
             .trim()
             .to_string();
-        let news_date = NaiveDate::parse_from_str(&news_date_string, "%d.%m.%Y")?;
+        let news_date = NaiveDate::parse_from_str(&news_date_string, "%d.%m.%Y")
+            .or_else(|_| NaiveDate::parse_from_str(&news_date_string, "%d/%m/%Y"))?;
         let visits: usize = article_elem.select(&news_visits_selector)
             .next()
             .context("Expected news visits")?
@@ -164,6 +167,7 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
             .parse()
             .ok()
         ).unwrap_or(0);
+        let is_new = article_elem.has_class(&"new".into(), scraper::CaseSensitivity::CaseSensitive);
         // Parse content
         let content_html = article_elem.select(&news_content_selector)
             .next()
@@ -178,6 +182,7 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
             date: news_date,
             visits,
             n_comments,
+            is_new,
             comments: vec![],
         });
     }

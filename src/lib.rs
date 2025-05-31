@@ -10,6 +10,7 @@ pub mod translations;
 
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use anyhow::{bail, Context};
@@ -26,31 +27,35 @@ use log::{trace, debug, info};
 
 const LOGIN_URL : &str = "https://studip.example.com/Shibboleth.sso/Login";
 const SAML_RESPONSE_URL: &str = "https://studip.example.com/Shibboleth.sso/SAML2/POST";
+const LOGIN_TARGET_URL: &str = "https://studip.uni-hannover.de/dispatch.php/login";
 const START_URL: &str = "https://studip.example.com/dispatch.php/start";
 
 /// The entry point into interacting with StudIp
 pub struct StudIp {
-    pub client: Arc<StudIpClient>,
+    pub client: Rc<StudIpClient>,
     pub my_courses: MyCourses
 }
 
 impl StudIp {
 
-    fn login_client<IdP: IdentityProvider>(&self, creds_path: &str) -> anyhow::Result<()> {
+    fn load_creds(creds_path: &str) -> anyhow::Result<(String, String)> {
+        let creds = std::fs::read_to_string(creds_path)
+            .context("Could not read from creds.txt")?;
+        let (username, password) = creds.split_once('\n')
+            .context("creds.txt did not have newline seperated username and password")?;
+        let username = username.trim().to_string();
+        let password = password.trim().to_string();
+        Ok((username, password))
+    }
+
+    fn login_client<IdP: IdentityProvider>(&self, username: &str, password: &str) -> anyhow::Result<()> {
         #[cfg(feature = "verbose")]
         info!("Starting Stud.IP login process");
 
         // Sets some cookies
         let _ = self.client.get("https://studip.example.com").send();
-        // Read and parse credentials
-        let creds = std::fs::read_to_string(creds_path)
-            .context("Could not read from creds.txt")?;
-        let (username, password) = creds.split_once('\n')
-            .context("creds.txt did not have newline seperated username and password")?;
-        let username = username.trim();
-        let password = password.trim();
-
-        let mut target_url = Url::parse(&format!("https://{}/index.php", self.client.host))?;
+        let mut target_url = Url::parse(LOGIN_TARGET_URL).expect("Target login URL should always be parsable");
+        target_url.set_host(Some(self.client.host))?;
         target_url.query_pairs_mut()
             .append_pair("sso", "shib")
             .append_pair("again", "yes")
@@ -91,15 +96,22 @@ impl StudIp {
     }
 
     /// Attempts to log in into a [`StudIp`] instance, with the `client` specified by the [`StudIpClient`] \
-    /// Uses the provided credentials and an [`IdentityProvider`], through which the user is authorized.
-    pub fn login<IdP: IdentityProvider>(creds_path: &str, client: StudIpClient) -> anyhow::Result<Self> {
-        let client = Arc::new(client);
+    /// Directly uses the provided credentials and an [`IdentityProvider`], through which the user is authorized.
+    pub fn login_raw<IdP: IdentityProvider>(username: &str, password: &str, client: StudIpClient) -> anyhow::Result<Self> {
+        let client = Rc::new(client);
         let stud_ip = Self {
             client: client.clone(),
             my_courses: MyCourses::from_client(client),
         };
-        stud_ip.login_client::<IdP>(creds_path)?;
+        stud_ip.login_client::<IdP>(username, password)?;
         Ok(stud_ip)
+    }
+
+    /// Attempts to log in into a [`StudIp`] instance, with the `client` specified by the [`StudIpClient`] \
+    /// Uses the provided credentials in the file and an [`IdentityProvider`], through which the user is authorized.
+    pub fn login<IdP: IdentityProvider>(creds_path: &str, client: StudIpClient) -> anyhow::Result<Self> {
+        let (username, password) = StudIp::load_creds(creds_path)?;
+        Self::login_raw::<IdP>(&username, &password, client)
     }
 
     /// Does a global search for the given `text`, providing at most `max_results` results per category using the given [`SearchFilter`].
@@ -254,6 +266,7 @@ impl StudIpClientBuilder {
                 .danger_accept_invalid_certs(self.danger_accept_invalid_certs)
                 .cookie_provider(cookie_jar.clone())
                 .timeout(self.timeout)
+                .redirect(reqwest::redirect::Policy::limited(30))
                 .use_rustls_tls()
                 .default_headers(default_headers)
                 .gzip(true);
@@ -275,10 +288,17 @@ impl StudIpClientBuilder {
     }
 
     /// Attempts to log in into a [`StudIp`] instance, with a client that has the current configuration \
-    /// Uses the provided credentials and an [`IdentityProvider`], through which the user is authorized.
+    /// Uses the provided credentials in the file and an [`IdentityProvider`], through which the user is authorized.
     pub fn login<IdP: IdentityProvider>(self, creds_path: &str) -> anyhow::Result<StudIp> {
         let client = self.build()?;
         StudIp::login::<IdP>(creds_path, client)
+    }
+
+    /// Attempts to log in into a [`StudIp`] instance, with the `client` specified by the [`StudIpClient`] \
+    /// Directly uses the provided credentials and an [`IdentityProvider`], through which the user is authorized.
+    pub fn login_raw<IdP: IdentityProvider>(self, username: &str, password: &str) -> anyhow::Result<StudIp> {
+        let client = self.build()?;
+        StudIp::login_raw::<IdP>(username, password, client)
     }
 }
 

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use anyhow::Context;
+use itertools::Itertools;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use crate::course_modules::{COURSE_MODULE_REGISTRY, CourseModule, CourseModuleData, register_default_course_modules, REGISTERED_DEFAULT_COURSE_MODULES};
@@ -11,10 +12,10 @@ pub(crate) const COURSE_URL: &str = "https://studip.example.com/dispatch.php/cou
 const MODULES_QUERY_URL : &str = "https://studip.example.com/seminar_main.php";
 
 /// Represents a course and it's modules \
-/// A singular module can be accessed, by type with the [get_module!()](crate::get_module!()) macro.
+/// A singular module can be accessed, by type with the [get_module()](Course::get_module) function.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Course {
-    // Json data
+    // All sorts of data
     /// The course ID
     pub id: String,
     /// The courses Name
@@ -24,6 +25,30 @@ pub struct Course {
     /// The group index in which the current user has added this course \
     /// Corresponds to the `groups` filed of the [`MyCourses`] struct
     pub group: usize,
+    /// The children of this course
+    pub children: Vec<serde_json::Value>,
+    /// The parent of this course
+    pub parent: Option<serde_json::Value>,
+    /// The icon url of the course
+    #[serde(rename = "avatar")]
+    pub icon_url: String,
+    /// Navigation items of the course
+    pub navigation: Vec<serde_json::Value>,
+    // Flags
+    /// If the admission to this course is binding
+    pub admission_binding: bool,
+    /// If you're a teacher of this course?
+    pub is_teacher: bool,
+    /// If the course is a study group
+    pub is_studygroup: bool,
+    /// If the course is hidden
+    pub is_hidden: bool,
+    /// If you are a "deputy" or moderator for this course.
+    pub is_deputy: bool,
+    /// If this course is a group
+    pub is_group: bool,
+    /// If there is extra navigation?
+    pub extra_navigation: bool,
 
     // Custom data
     #[serde(skip)]
@@ -31,7 +56,7 @@ pub struct Course {
     /// Needs to be queried with [`Course::query_modules()`]
     pub modules: Vec<Box<dyn CourseModule>>,
     #[serde(skip)]
-    client: Arc<StudIpClient>
+    client: Rc<StudIpClient>
 }
 
 impl Course {
@@ -45,9 +70,9 @@ impl Course {
         let response = self.client.get(MODULES_QUERY_URL)
             .query(&[("auswahl", &self.id)])
             .send()?;
-        let html = Html::parse_document(&response.text().unwrap());
+        let html = Html::parse_document(&response.text()?);
         let tabs_selector = Selector::parse("#tabs li").unwrap();
-        let module_data = Arc::new(CourseModuleData {
+        let module_data = Rc::new(CourseModuleData {
             course_id: self.id.clone(),
             client: self.client.clone(),
         });
@@ -67,23 +92,69 @@ impl Course {
 
 }
 
+/// Represents a set of groups, containing grouping information for courses (e.g. by semester).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SetGroup {
+    pub id: i64,
+    /// The name of the set (e.g. semester name)
+    pub name: String,
+    /// The entries of the set groups (Only ever observed one element)
+    #[serde(rename = "data")]
+    pub entries: Vec<CourseEntries>,
+}
+
+impl SetGroup {
+
+    /// Gets all the courses in the set group.
+    pub fn get_courses<'a>(&self, courses: &'a mut HashMap<String, Course>) -> Vec<&'a mut Course> {
+        self.entries
+            .iter()
+            .flat_map(|entry| entry.ids.iter())
+            .unique() // Collect each ID exactly once (No aliasing)
+            .filter_map(|id| {
+                // Get courses and store raw pointer to avoid re-borrowing errors
+                courses.get_mut(id).map(|c_ref| c_ref as *mut Course)
+            })
+            .map(|raw| {
+                // SAFETY: We know each `raw` came from a distinct `&mut Course` above,
+                // and all these entries remain valid for `'a`. So it’s safe to re‐borrow.
+                unsafe { &mut *raw }
+            })
+            .collect()
+    }
+
+}
+
+/// Represents individual entries within a [`SetGroup`], containing course information.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CourseEntries {
+    pub id: String,
+    pub label: bool,
+    /// A list of course IDs
+    pub ids: Vec<String>,
+}
+
 /// Contains all the courses, and some addition data, of the current user
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MyCourses {
+    #[serde(rename = "setCourses")]
     pub courses: HashMap<String, Course>,
-    pub groups: Vec<serde_json::Value>,
+    #[serde(rename = "setGroups")]
+    pub set_groups: Vec<SetGroup>,
+    #[serde(rename = "setUserId")]
     pub user_id: String,
+    #[serde(rename = "setConfig")]
     pub config: HashMap<String, serde_json::Value>,
     #[serde(skip)]
-    client: Arc<StudIpClient>
+    client: Rc<StudIpClient>
 }
 
 impl MyCourses {
 
-    pub(crate) fn from_client(client: Arc<StudIpClient>) -> Self {
+    pub(crate) fn from_client(client: Rc<StudIpClient>) -> Self {
         Self {
             courses: Default::default(),
-            groups: Default::default(),
+            set_groups: Default::default(),
             user_id: Default::default(),
             config: Default::default(),
             client,
@@ -98,20 +169,11 @@ impl MyCourses {
         let text = r.text().context("failed to get response text")?;
         let html = Html::parse_document(&text);
         // I LOVE JAVASCRIPT! HAHAHHAH
-        let script_tag_selector = Selector::parse("script[type=\"text/javascript\"]").unwrap();
-        let json_string = html.select(&script_tag_selector).find_map(|element| {
-            let inner = element.inner_html();
-            if !inner.contains("window.STUDIP.MyCoursesData") {
-                return None;
-            }
-            let (_, json_str) = inner.split_once('=').unwrap();
-            let json_string = json_str.replace('\n', "");
-            Some(json_string)
-        }).context("Expected MyCoursesData to be present in html")?;
+        let script_tag_selector = Selector::parse("script#vue-vuex-store-data-mycourses").unwrap();
+        let script = html.select(&script_tag_selector).next().context("Expected MyCoursesData to be present in html")?;
+        let script_string = script.inner_html();
         // Parse MyCoursersData
-        let json_str = json_string.trim()
-            .trim_end_matches(';');
-        let mut new_my_courses: Self = serde_json::from_str(json_str)
+        let mut new_my_courses: Self = serde_json::from_str(script_string.trim())
             .context("Could not parse MyCoursesData")?;
         // Copy api handle to courses
         for course in new_my_courses.courses.values_mut() {
@@ -133,6 +195,16 @@ impl MyCourses {
         self.courses.iter_mut()
             .find(|(_, course)| course.name == name)
             .map(|(_, course)| course)
+    }
+
+    /// Retrieves all courses belonging to a specific set group by name.
+    ///
+    /// Useful when trying to find all courses that are in a specific semester.
+    pub fn get_courses_by_set_group_name(&mut self, set_group_name: &str) -> Vec<&mut Course> {
+        let Some(set_group) = self.set_groups.iter()
+            .find(|set_group| set_group.name == set_group_name)
+        else { return vec![] };
+        set_group.get_courses(&mut self.courses)
     }
 
 }

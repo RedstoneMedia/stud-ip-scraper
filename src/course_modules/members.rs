@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use anyhow::bail;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use chrono::serde::ts_seconds;
@@ -17,11 +17,11 @@ const GROUPS_URL : &str = "https://studip.example.com/dispatch.php/course/status
 /// Module, that enables querying the members of a course and operating on the courses groups
 #[derive(Debug)]
 pub struct MembersModule {
-    course_module_data: Arc<CourseModuleData>
+    course_module_data: Rc<CourseModuleData>
 }
 
 impl CourseModule for MembersModule {
-    fn new(data: Arc<CourseModuleData>) -> Self {
+    fn new(data: Rc<CourseModuleData>) -> Self {
         Self {course_module_data: data}
     }
 
