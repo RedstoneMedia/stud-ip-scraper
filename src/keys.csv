@@ -3,6 +3,7 @@ E_MAIL,e-mail,e-mail
 HOME_TELEPHONE_NUMBER,home telephone number,telefon (privat)
 MOBILE_TELEPHONE_NUMBER,mobile telephone,mobiltelefon
 ADDRESS,address,addresse
+HOME_ADDRESS,Address (home),Adresse (privat)
 HOMEPAGE,homepage,homepage
 WHERE_I_WORK,where i work,wo ich arbeite
 WHERE_I_STUDY,where i study,wo ich studiere
