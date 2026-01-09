@@ -61,7 +61,8 @@ impl OverviewModule {
         let response = self.module_data.client.get(OVERVIEW_MODULE_URL)
             .query(&[("cid", &self.module_data.course_id)])
             .send()?;
-        let html = Html::parse_document(&response.text()?);
+        let text = response.text().context("Could not get response text")?;
+        let html = Html::parse_document(&text);
 
         let announcements_selector = Selector::parse("#content article.studip").unwrap();
         let news_header_selector = Selector::parse("header > h1 > .icon-shape-news").unwrap();
@@ -72,7 +73,7 @@ impl OverviewModule {
         if news_box.select(&news_header_selector).next().is_none() {
             return Ok(vec![]);
         }
-        let news = parse_news_box(news_box, &ReferenceSource::Course(self.module_data.course_id.clone()))?;
+        let news = parse_news_box(news_box, &ReferenceSource::Course(self.module_data.course_id.clone())).context("Could not parse news")?;
         Ok(news)
     }
 

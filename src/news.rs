@@ -127,7 +127,8 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
     let news_creation_date_selector = Selector::parse("header .news_date").unwrap();
     let news_visits_selector = Selector::parse("header .news_visits").unwrap();
     let news_n_comments_selector = Selector::parse("header .news_comments_indicator").unwrap();
-    let news_content_selector = Selector::parse("section > article .formatted-content").unwrap();
+    let article_section_selector = Selector::parse("section > article").unwrap();
+    let content_selector = Selector::parse(".formatted-content").unwrap();
     let mut news_articles = vec![];
     for article_elem in element.select(&articles_selector) {
         // Parse header
@@ -142,7 +143,7 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
         let author_elem = article_elem.select(&news_author_selector)
             .next()
             .context("Expected news author")?;
-        let author = parse_simple_user(author_elem)?;
+        let author = parse_simple_user(author_elem).context("Could not parse author user")?;
         let news_date_string = article_elem.select(&news_creation_date_selector)
             .next()
             .context("Expected news creation date")?
@@ -151,7 +152,7 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
             .trim()
             .to_string();
         let news_date = NaiveDate::parse_from_str(&news_date_string, "%d.%m.%Y")
-            .or_else(|_| NaiveDate::parse_from_str(&news_date_string, "%d/%m/%Y"))?;
+            .or_else(|_| NaiveDate::parse_from_str(&news_date_string, "%d/%m/%Y")).context("Could not parse news date")?;
         let visits: usize = article_elem.select(&news_visits_selector)
             .next()
             .context("Expected news visits")?
@@ -168,11 +169,13 @@ pub fn parse_news_box(element: ElementRef, reference_source: &ReferenceSource) -
             .ok()
         ).unwrap_or(0);
         let is_new = article_elem.has_class(&"new".into(), scraper::CaseSensitivity::CaseSensitive);
+
+        let article_section_elem = article_elem.select(&article_section_selector).next().context("Expected article section")?;
         // Parse content
-        let content_html = article_elem.select(&news_content_selector)
+        let content_html = article_section_elem.select(&content_selector)
             .next()
-            .context("Expected news content")?
-            .inner_html();
+            .map(|e| e.inner_html())
+            .unwrap_or(String::new()); // Can be empty
         news_articles.push(NewsArticle {
             id: article_id,
             source: reference_source.clone(),
