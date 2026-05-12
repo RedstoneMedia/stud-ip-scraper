@@ -53,10 +53,10 @@ impl FileModule {
         let their_folders: Vec<TheirFolder> = serde_json::from_str(data_folders)?;
         Ok(FolderContents {
             folders: their_folders.into_iter()
-                .map(|f| try_folder_from_their(f, &self.module_data.course_id))
+                .map(|f| self.try_folder_from_their(f, &self.module_data.course_id))
                 .collect::<Result<_, _>>()?,
             files: their_files.into_iter()
-                .map(|f| try_file_from_their(f, &self.module_data.course_id))
+                .map(|f| self.try_file_from_their(f, &self.module_data.course_id))
                 .collect::<Result<_, _>>()?,
         })
     }
@@ -100,6 +100,60 @@ impl FileModule {
     }
 
     // TODO: Add file upload option
+
+
+    fn try_file_from_their(&self, their: TheirFile, course_id: &str) -> anyhow::Result<File> {
+        Ok(File {
+            object: FilesObject {
+                id: their.id,
+                name: their.name,
+                change_date: their.chdate,
+                author: User {
+                    display_name: their.author_name,
+                    username: self.get_username_from_url(&their.author_url)?,
+                    avatar_src: None,
+                    source: ReferenceSource::Course(course_id.to_string()),
+                },
+                icon: their.icon,
+                mime_type: their.mime_type,
+            },
+            size: their.size,
+            downloads: their.downloads,
+            restricted_terms_of_use: their.restricted_terms_of_use,
+            new: their.new,
+            is_editable: their.is_editable,
+            is_accessible: their.is_accessible,
+        })
+    }
+
+    fn try_folder_from_their(&self, their: TheirFolder, course_id: &str) -> anyhow::Result<Folder> {
+        Ok(Folder {
+            object: FilesObject {
+                id: their.id,
+                name: their.name,
+                change_date: their.chdate,
+                author: User {
+                    display_name: their.author_name,
+                    username: self.get_username_from_url(&their.author_url)?,
+                    avatar_src: None,
+                    source: ReferenceSource::Course(course_id.to_string()),
+                },
+                icon: their.icon,
+                mime_type: their.mime_type,
+            },
+            object_count: their.object_count,
+            permissions: their.permissions,
+        })
+    }
+
+    fn get_username_from_url(&self, url: &str) -> anyhow::Result<String> {
+        if url.is_empty() { // The url of a file is only empty, if the current user is the creator.
+            Ok(self.module_data.client.username.clone())
+        } else {
+            get_username_from_url(url)
+        }
+    }
+
 
 }
 
@@ -199,30 +253,6 @@ struct TheirFile {
     pub is_accessible: bool,
 }
 
-fn try_file_from_their(their: TheirFile, course_id: &str) -> anyhow::Result<File> {
-    Ok(File {
-        object: FilesObject {
-            id: their.id,
-            name: their.name,
-            change_date: their.chdate,
-            author: User {
-                display_name: their.author_name,
-                username: get_username_from_url(&their.author_url)?,
-                avatar_src: None,
-                source: ReferenceSource::Course(course_id.to_string()),
-            },
-            icon: their.icon,
-            mime_type: their.mime_type,
-        },
-        size: their.size,
-        downloads: their.downloads,
-        restricted_terms_of_use: their.restricted_terms_of_use,
-        new: their.new,
-        is_editable: their.is_editable,
-        is_accessible: their.is_accessible,
-    })
-}
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TheirFolder {
@@ -245,24 +275,4 @@ struct TheirFolder {
     pub mime_type: String,
     pub permissions: String,
     pub additional_columns: Vec<serde_json::Value>,
-}
-
-fn try_folder_from_their(their: TheirFolder, course_id: &str) -> anyhow::Result<Folder> {
-    Ok(Folder {
-        object: FilesObject {
-            id: their.id,
-            name: their.name,
-            change_date: their.chdate,
-            author: User {
-                display_name: their.author_name,
-                username: get_username_from_url(&their.author_url)?,
-                avatar_src: None,
-                source: ReferenceSource::Course(course_id.to_string()),
-            },
-            icon: their.icon,
-            mime_type: their.mime_type,
-        },
-        object_count: their.object_count,
-        permissions: their.permissions,
-    })
 }

@@ -97,7 +97,8 @@ impl StudIp {
 
     /// Attempts to log in into a [`StudIp`] instance, with the `client` specified by the [`StudIpClient`] \
     /// Directly uses the provided credentials and an [`IdentityProvider`], through which the user is authorized.
-    pub fn login_raw<IdP: IdentityProvider>(username: &str, password: &str, client: StudIpClient) -> anyhow::Result<Self> {
+    pub fn login_raw<IdP: IdentityProvider>(username: &str, password: &str, mut client: StudIpClient) -> anyhow::Result<Self> {
+        client.username = username.to_owned();
         let client = Rc::new(client);
         let stud_ip = Self {
             client: client.clone(),
@@ -203,7 +204,7 @@ impl StudIpClientBuilder {
             proxy: None,
             danger_accept_invalid_certs: false,
             timeout: Duration::from_secs(8),
-            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.",
             request_max_speed: Duration::from_millis(150)
         }
     }
@@ -280,6 +281,7 @@ impl StudIpClientBuilder {
             client,
             cookie_jar,
             host: self.host,
+            username: Default::default(),
             #[cfg(feature = "rate_limiting")]
             last_request_time: RefCell::new(SystemTime::UNIX_EPOCH),
             #[cfg(feature = "rate_limiting")]
@@ -308,6 +310,7 @@ pub struct StudIpClient {
     pub client: Client,
     pub host: &'static str,
     pub cookie_jar: Arc<Jar>,
+    pub username: String,
     #[cfg(feature = "rate_limiting")]
     last_request_time: RefCell<SystemTime>,
     #[cfg(feature = "rate_limiting")]
@@ -320,6 +323,7 @@ impl Default for StudIpClient {
             client: Default::default(),
             host: "studip.example.com",
             cookie_jar: Arc::new(Default::default()),
+            username: Default::default(),
             #[cfg(feature = "rate_limiting")]
             last_request_time: RefCell::new(SystemTime::UNIX_EPOCH),
             #[cfg(feature = "rate_limiting")]
