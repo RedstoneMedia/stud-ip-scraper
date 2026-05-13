@@ -3,7 +3,7 @@
 ![Crates.io License](https://img.shields.io/crates/l/stud_ip_scraper)
 ![Crates.io Version](https://img.shields.io/crates/v/stud_ip_scraper)
 
-A blazingly fast 🚀 library for interacting with Stud.IP written in Rust 🦀. \
+A blazingly fast 🚀 library for interacting with Stud.IP written in Rust 🦀.
 
 *Mainly leverages web scraping techniques to query the data.*
 
@@ -11,7 +11,7 @@ A blazingly fast 🚀 library for interacting with Stud.IP written in Rust 🦀.
 This crate mainly focuses on logging into a Stud.IP instance using an **Identity Provider** and management of courses.
 
 Here are some key things that can be achieved with this crate:
-- Querying the user's courses 📚
+- Querying the user's courses / set groups 📚
 - Extendable management of course modules
 - Querying files and folders of a course 📁
 - Downloading files 📥
@@ -20,7 +20,7 @@ Here are some key things that can be achieved with this crate:
 - Querying the details of a course
 - Querying the announcements of a course 📰
 - Joining and leaving course groups 🚪
-- Executing filtered global searches on the entire instance 🔎
+- Executing filtered global searches 🔎
 
 ## Usage
 To use this crate, you will need to create an instance of the `StudIp` struct. \
