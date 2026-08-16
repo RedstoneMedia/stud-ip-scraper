@@ -117,7 +117,7 @@ impl FileModule {
                 icon: their.icon,
                 mime_type: their.mime_type,
             },
-            size: their.size,
+            size: their.size.unwrap_or(0),
             downloads: their.downloads,
             restricted_terms_of_use: their.restricted_terms_of_use,
             new: their.new,
@@ -233,8 +233,8 @@ struct TheirFile {
     #[serde(rename = "mime_type")]
     pub mime_type: String,
     pub icon: String,
-    #[serde(deserialize_with = "from_str")]
-    pub size: usize,
+    #[serde(deserialize_with = "opt_from_str", default)]
+    pub size: Option<usize>,
     #[serde(rename = "author_url")]
     pub author_url: String,
     #[serde(rename = "author_name")]
@@ -275,4 +275,14 @@ struct TheirFolder {
     pub mime_type: String,
     pub permissions: String,
     pub additional_columns: Vec<serde_json::Value>,
+}
+
+
+fn opt_from_str<'de, D: Deserializer<'de>, T: FromStr>(deserializer: D) -> Result<Option<T>, D::Error>
+    where <T as FromStr>::Err: std::fmt::Display
+{
+    match Option::<String>::deserialize(deserializer)? {
+        Some(s) => s.parse::<T>().map(Some).map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
 }

@@ -139,7 +139,7 @@ pub struct SearchEntryCourse {
     pub img: String,
 }
 
-/// A institute entry returned by [`global_search()`].
+/// An institute entry returned by [`global_search()`].
 ///
 /// Can be converted to a normal [`Institute`] using [`From`]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
